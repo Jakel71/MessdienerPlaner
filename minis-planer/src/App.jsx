@@ -3,7 +3,7 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
-function Banner(gemeinde){
+function BannerTop({ gemeinde }) {
   return(
     <div>
       <h1>Minis-planer</h1>
@@ -12,13 +12,35 @@ function Banner(gemeinde){
   )
 }
 
+function UsernameInput() {
+  const [username, setUsername] = useState('');
+
+  function handleInputChange(event) {
+    setUsername(event.target.value);
+    console.log('Username:', event.target.value);
+  }
+
+  return (
+    <div>
+      <label htmlFor="username">Username:</label>
+      <input
+        type="text"
+        id="username"
+        value={username}
+        onChange={handleInputChange}
+      />
+    </div>
+  );
+}
 
 function App() {
   const [count, setCount] = useState(0)
+  const gemeinde = "Ober-Olm";
 
   return (
     <>
-      <Banner gemeinde="Ober-Olm"/>
+      <BannerTop gemeinde={gemeinde} />
+      <UsernameInput />
       <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
