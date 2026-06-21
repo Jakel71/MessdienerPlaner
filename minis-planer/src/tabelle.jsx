@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './tabelle.css';
+import { supabase } from './supabaseClient';
 
 const Kirchen = [
     { id: 'martin', name: 'St. Martin' },
@@ -7,56 +8,80 @@ const Kirchen = [
     { id: 'petrus', name: 'St. Petrus' }
 ];
 
-const GottesdienstTermine = [
-    {
-        id: '1', date: '21.06.2026', time: '10:00', kirchen: {
-            'martin': { gottesdienstId: 'gd_102', typ: 'Eucharistiefeier' },
-            'andreas': null,
-            'petrus': { gottesdienstId: 'gd_103', typ: 'Eucharistiefeier' }
-        }
-    },
-    {
-        id: '2', date: '21.06.2026', time: '11:00', kirchen: {
-            'martin': { gottesdienstId: 'gd_104', typ: 'Wort-Gottes-Feier' },
-            'andreas': { gottesdienstId: null },
-            'petrus': { gottesdienstId: null }
-        }
-    },
-    {
-        id: '3', date: '21.06.2026', time: '19:00', kirchen: {
-            'martin': { gottesdienstId: 'gd_105', typ: 'Andacht' },
-            'andreas': { gottesdienstId: null },
-            'petrus': { gottesdienstId: 'gd_106', typ: 'Eucharistiefeier' }
-        }
-    }
-];
-
 export default function EintragsTabelle({ username }) {
+    // State speichert jetzt: gottesdienstId → true (wenn ausgewählt) oder false/undefined
     const [eintragungen, setEintragungen] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [GottesdienstTermine, setGottesdienstTermine] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleAuswahl = (gottesdienstId, status) => {
+
+    useEffect(() => {
+        async function ladeGottesdienste() {
+            try {
+                const { data, error } = await supabase
+                    .from('gottesdienste')
+                    .select('*')
+                    .order('time', { ascending: true }); // Nach Uhrzeit sortieren
+
+                if (error) throw error;
+                setGottesdienstTermine(data || []);
+            } catch (error) {
+                console.error('Fehler beim Laden der Gottesdienste:', error.message);
+                alert('Messen konnten nicht geladen werden.');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        ladeGottesdienste();
+    }, []);
+
+
+    const handleAuswahl = (gottesdienstId) => {
         setEintragungen(prev => ({
             ...prev,
-            [gottesdienstId]: prev[gottesdienstId] === status ? null : status
+            // Kehrt den aktuellen Wert einfach um (true -> false / undefined -> true)
+            [gottesdienstId]: !prev[gottesdienstId]
         }));
     };
 
-    // Diese Funktion wird aufgerufen, wenn der Admin/Ministrant auf Speichern klickt
-    const handleSpeichern = () => {
+    const handleSpeichern = async () => {
         if (!username || username.trim() === '') {
             alert('⚠️ Bitte trage zuerst oben deinen Namen ein!');
             return;
         }
 
-        // Das ist das fertige Objekt, das exakt so in die Datenbank wandern wird!
-        const eintragungsDaten = {
-            ministrant: username.trim(),
-            abgabeZeitpunkt: new Date().toISOString(),
-            verfuegbarkeiten: eintragungen
-        };
+        setIsSaving(true);
 
-        console.log('Sende an Datenbank:', eintragungsDaten);
-        alert(`Danke ${username}! Deine Rückmeldung wurde im Browser vorbereitet. Jetzt fehlt nur noch die echte Datenbank!`);
+        // Filtere nur die IDs heraus, die auf "true" (aktiv) geklickt wurden
+        const aktiveZusagen = Object.keys(eintragungen).filter(id => eintragungen[id] === true);
+
+        try {
+            // Sende die Daten live an deine Supabase-Tabelle "zusagen"
+            const { error } = await supabase
+                .from('zusagen')
+                .insert([
+                    {
+                        ministrant: username.trim(),
+                        gottesdienst_ids: aktiveZusagen
+                    }
+                ]);
+
+            if (error) throw error;
+
+            alert(`🎉 Danke ${username}! Deine Termine wurden erfolgreich gespeichert.`);
+            setEintragungen({}); // Formular nach Erfolg leeren
+        } catch (error) {
+            console.error('Fehler beim Speichern:', error.message);
+            alert('❌ Fehler beim Speichern. Bitte versuche es noch einmal.');
+        } finally {
+            setIsSaving(false);
+        }
+
+        if (isLoading) {
+            return <div className="tabellenContainer">⏳ Gottesdienste werden geladen...</div>;
+        }
     };
 
     return (
@@ -83,27 +108,20 @@ export default function EintragsTabelle({ username }) {
                             {Kirchen.map(kirche => {
                                 const eintrag = termin.kirchen[kirche.id];
                                 const info = eintrag && eintrag.gottesdienstId ? eintrag : null;
-                                const aktuellerStatus = eintragungen[info?.gottesdienstId];
+                                const istAusgewaehlt = !!eintragungen[info?.gottesdienstId];
 
                                 return (
                                     <td className="eintragungsTabelleReihe" key={kirche.id}>
                                         {info ? (
                                             <div className="gottesdienstZelle">
                                                 <span className="gottesdienstTyp">{info.typ}</span>
-                                                <div className="buttonGruppe">
-                                                    <button
-                                                        onClick={() => handleAuswahl(info.gottesdienstId, 'ja')}
-                                                        className={`eintragungsTabelleButton btnZusage ${aktuellerStatus === 'ja' ? 'aktivZusage' : ''}`}
-                                                    >
-                                                        {aktuellerStatus === 'ja' ? '✓ Dabei' : 'Kann'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleAuswahl(info.gottesdienstId, 'nein')}
-                                                        className={`eintragungsTabelleButton btnAbsage ${aktuellerStatus === 'nein' ? 'aktivAbsage' : ''}`}
-                                                    >
-                                                        {aktuellerStatus === 'nein' ? '✕ Raus' : 'Kann nicht'}
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    onClick={() => handleAuswahl(info.gottesdienstId)}
+                                                    className={`eintragungsTabelleButton btnZusage ${istAusgewaehlt ? 'aktivZusage' : ''}`}
+                                                    style={{ width: '100%', minWidth: '110px' }}
+                                                >
+                                                    {istAusgewaehlt ? '✓ Bin dabei' : 'Kann dienen'}
+                                                </button>
                                             </div>
                                         ) : (
                                             <div className="keinGottesdienst">
@@ -119,14 +137,14 @@ export default function EintragsTabelle({ username }) {
                 </tbody>
             </table>
 
-            {/* Der neue Speichern-Button unter der Tabelle */}
             <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <button 
-                    onClick={handleSpeichern} 
+                <button
+                    onClick={handleSpeichern}
                     className="eintragungsTabelleButton aktivZusage"
                     style={{ padding: '12px 30px', fontSize: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                    disabled={isSaving}
                 >
-                    💾 Meine Termine absenden
+                    {isSaving ? 'Speichern...' : '💾 Eintragung absenden'}
                 </button>
             </div>
         </div>

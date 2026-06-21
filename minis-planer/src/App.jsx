@@ -21,8 +21,8 @@ function UsernameInput({ username, setUsername }) {
         id="username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        placeholder="Vor- und Nachname"
-        style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+        placeholder="Vor- und Nachname-Kürzel (z.B. Max M.)"
+        style={{padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '250px' }}
       />
     </div>
   );
