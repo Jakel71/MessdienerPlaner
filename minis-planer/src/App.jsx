@@ -1,65 +1,45 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import EintragsTabelle from './tabelle.jsx';
 
 function BannerTop({ gemeinde }) {
   return(
     <div>
       <h1>Minis-planer</h1>
-      <p>{gemeinde}</p>
+      <p>Pastoralraum – Gemeinde: {gemeinde}</p>
     </div>
   )
 }
 
-function UsernameInput() {
-  const [username, setUsername] = useState('');
-
-  function handleInputChange(event) {
-    setUsername(event.target.value);
-    console.log('Username:', event.target.value);
-  }
-
+// Wir übergeben username und setUsername als "Props" von der App-Komponente
+function UsernameInput({ username, setUsername }) {
   return (
-    <div>
-      <label htmlFor="username">Username:</label>
+    <div style={{ margin: '20px 0' }}>
+      <label htmlFor="username" style={{ marginRight: '10px', fontWeight: 'bold' }}>Dein Name: </label>
       <input
         type="text"
         id="username"
         value={username}
-        onChange={handleInputChange}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Vor- und Nachname"
+        style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
       />
     </div>
   );
 }
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Der State für den Namen wohnt jetzt hier ganz oben
+  const [username, setUsername] = useState('');
   const gemeinde = "Ober-Olm";
 
   return (
     <>
       <BannerTop gemeinde={gemeinde} />
-      <UsernameInput />
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <UsernameInput username={username} setUsername={setUsername} />
+      
+      {/* Die Tabelle bekommt den aktuellen Namen als Prop mitgeliefert */}
+      <EintragsTabelle username={username} />
     </>
   )
 }
